@@ -5,6 +5,31 @@ static Window *s_main_window;
 /// To show text on the screen
 static TextLayer *s_time_layer;
 
+// Oh right, declaration order matters in C.
+// So the file's kind of written upside-down
+// in terms of execution/dependencies
+static void update_time() {
+	time_t temp = time(NULL);
+	struct tm *tick_time = localtime(&temp);
+	
+	// long-lived
+	static char buffer[] = "00:00";
+	
+	// move to buffer
+	if(clock_is_24h_style() == true) {
+		strftime(buffer, sizeof("00:00"), "%H:%M", tick_time);
+	} else {
+		strftime(buffer, sizeof("00:00"), "%I:%M", tick_time);
+	}
+	
+	// persist to UI
+	text_layer_set_text(s_time_layer, buffer);
+}
+
+static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+	update_time();
+}
+
 /// Called when the window is loaded
 static void main_window_load(Window *window) {
 	// Be sure to _destroy this on _unload()
@@ -13,8 +38,7 @@ static void main_window_load(Window *window) {
 	// Text/UI initialization
 	text_layer_set_background_color(s_time_layer, GColorClear);
 	text_layer_set_text_color(s_time_layer, GColorBlack);
-	text_layer_set_text(s_time_layer, "00:00");
-	
+		
 	// Make it pretty
 	text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
 	text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
@@ -39,6 +63,9 @@ static void init() {
 	});
 	
 	window_stack_push(s_main_window, true);
+	update_time();
+	
+	tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 }
 
 static void deinit() {
