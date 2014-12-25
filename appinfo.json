@@ -1,0 +1,19 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "nathanlandis@gmail.com",
+    "longName": "pebble-watchface-example",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "shortName": "pebble-watchface-example",
+    "uuid": "33ea871e-d088-4669-9e16-89a8c1b4001c",
+    "versionCode": 1,
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": true
+    }
+}
