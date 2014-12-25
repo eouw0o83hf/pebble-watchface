@@ -1,5 +1,8 @@
 #include <pebble.h>
 	
+#define KEY_TEMPERATURE 0
+#define KEY_CONDITIONS 1
+	
 /// The main watchface window
 static Window *s_main_window;
 /// To show text on the screen
@@ -14,7 +17,7 @@ static void update_time() {
 	time_t temp = time(NULL);
 	struct tm *tick_time = localtime(&temp);
 	
-	// long-lived
+	// make all char buffers long-lived
 	static char buffer[] = "00:00";
 	
 	// move to buffer
@@ -65,6 +68,46 @@ static void main_window_unload(Window *window) {
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
 	
+	static char temp_buffer[8];
+	static char cond_buffer[32];
+	static char text_buffer[32];
+	
+	APP_LOG(APP_LOG_LEVEL_INFO, "response received from phone");
+  	Tuple *t = dict_read_first(iterator);
+	
+	// This is how to pull a key out on demand
+	/*
+		Tuple *thing = dict_find(iterator, KEY_TEMPERATURE);
+		if(thing == NULL) {
+			APP_LOG(APP_LOG_LEVEL_ERROR, "error finding temperature item");
+
+		} else {
+			APP_LOG(APP_LOG_LEVEL_WARNING, "found it!");
+		}
+	*/
+	
+	// This is how to iteratively find all key/value pairs
+	while(t != NULL) {
+		switch(t->key) {
+			case KEY_TEMPERATURE:
+				snprintf(temp_buffer, sizeof(temp_buffer), "%dF", (int)t->value->int32);
+				break;
+			
+			case KEY_CONDITIONS:
+				snprintf(cond_buffer, sizeof(cond_buffer), "%s", t->value->cstring);
+				break;
+			
+			default:
+				APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
+				break;
+		}
+		
+		t = dict_read_next(iterator);
+	}
+	
+	// Assemble
+	snprintf(text_buffer, sizeof(text_buffer), "%s, %s", temp_buffer, cond_buffer);
+	text_layer_set_text(s_weather_layer, text_buffer);
 }
 
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {
