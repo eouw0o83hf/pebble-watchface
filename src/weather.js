@@ -38,7 +38,12 @@ function locationSuccess(pos) {
 			
 			var dictionary = {
 				0: temperature,
-				1: conditions
+				1: conditions,
+				// toString() these because the Pebble C library doesn't understand
+				// how to parse floating-point numbers, so it doesn't recognize the
+				// floating-point JSON value. Just make it a string.
+				2: pos.coords.latitude.toString(),
+				3: pos.coords.longitude.toString()
 			};
 			
 			console.log("Sending to pebble: " + JSON.stringify(dictionary));
@@ -48,7 +53,7 @@ function locationSuccess(pos) {
 					console.log("pebble send success");
 				},
 				function(e) {
-					console.log("pebble send fail: " + e);
+					console.log("pebble send fail: " + e.error.message);
 				});
 		});
 }

@@ -1,7 +1,9 @@
 #include <pebble.h>
 	
 #define KEY_TEMPERATURE 0
-#define KEY_CONDITIONS 1
+#define KEY_CONDITIONS 	1
+#define KEY_LATITUDE	2
+#define KEY_LONGITUDE	3
 	
 /// The main watchface window
 static Window *s_main_window;
@@ -9,6 +11,8 @@ static Window *s_main_window;
 static TextLayer *s_time_layer;
 /// For temperature
 static TextLayer *s_weather_layer;
+/// For location
+static TextLayer *s_latlon_layer;
 
 // Oh right, declaration order matters in C.
 // So the file's kind of written upside-down
@@ -38,42 +42,54 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 /// Called when the window is loaded
 static void main_window_load(Window *window) {
 	// Be sure to _destroy this on _unload()
-	s_time_layer = text_layer_create(GRect(0, 55, 144, 50));
+	s_time_layer = text_layer_create(GRect(0, 35, 144, 50));
 	// Text/UI initialization
 	text_layer_set_background_color(s_time_layer, GColorClear);
 	text_layer_set_text_color(s_time_layer, GColorBlack);
-		
 	// Make it pretty
 	text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
 	text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
 
+	// Activate
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_layer));
 
 	// Create temperature Layer
-	s_weather_layer = text_layer_create(GRect(0, 110, 144, 25));
+	s_weather_layer = text_layer_create(GRect(0, 90, 144, 25));
 	text_layer_set_background_color(s_weather_layer, GColorBlack);
 	text_layer_set_text_color(s_weather_layer, GColorWhite);
 	text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
-	text_layer_set_text(s_weather_layer, "Loading...");
-	text_layer_set_font(s_weather_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-
+	text_layer_set_text(s_weather_layer, "Weather pending");
+	text_layer_set_font(s_weather_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_weather_layer));
+	
+	// Create location Layer
+	s_latlon_layer = text_layer_create(GRect(0, 120, 144, 25));
+	text_layer_set_background_color(s_latlon_layer, GColorClear);
+	text_layer_set_text_color(s_latlon_layer, GColorBlack);
+	text_layer_set_text_alignment(s_latlon_layer, GTextAlignmentCenter);
+	text_layer_set_text(s_latlon_layer, "latlon here");
+	text_layer_set_font(s_latlon_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_latlon_layer));
 }
 
 /// Called when the window is unloaded
 static void main_window_unload(Window *window) {
 	text_layer_destroy(s_time_layer);
 	text_layer_destroy(s_weather_layer);
+	text_layer_destroy(s_latlon_layer);
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
 	
 	static char temp_buffer[8];
 	static char cond_buffer[32];
-	static char text_buffer[32];
+	static char weather_buffer[32];
+	
+	static char lat_buffer[8];
+	static char lon_buffer[8];
+	static char latlon_buffer[32];
 	
 	APP_LOG(APP_LOG_LEVEL_INFO, "response received from phone");
-  	Tuple *t = dict_read_first(iterator);
 	
 	// This is how to pull a key out on demand
 	/*
@@ -87,14 +103,23 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	*/
 	
 	// This is how to iteratively find all key/value pairs
+	Tuple *t = dict_read_first(iterator);
 	while(t != NULL) {
 		switch(t->key) {
 			case KEY_TEMPERATURE:
-				snprintf(temp_buffer, sizeof(temp_buffer), "%dF", (int)t->value->int32);
+				snprintf(temp_buffer, sizeof(temp_buffer), "%d°F", (int)t->value->int32);
 				break;
 			
 			case KEY_CONDITIONS:
 				snprintf(cond_buffer, sizeof(cond_buffer), "%s", t->value->cstring);
+				break;
+			
+			case KEY_LATITUDE:
+				snprintf(lat_buffer, sizeof(lat_buffer), "%.5s", t->value->cstring);
+				break;
+			
+			case KEY_LONGITUDE:
+				snprintf(lon_buffer, sizeof(lon_buffer), t->value->cstring[0] == '-' ? "%.6s" : "%.5s", t->value->cstring);
 				break;
 			
 			default:
@@ -106,8 +131,11 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	}
 	
 	// Assemble
-	snprintf(text_buffer, sizeof(text_buffer), "%s, %s", temp_buffer, cond_buffer);
-	text_layer_set_text(s_weather_layer, text_buffer);
+	snprintf(weather_buffer, sizeof(weather_buffer), "%s, %s", temp_buffer, cond_buffer);
+	text_layer_set_text(s_weather_layer, weather_buffer);
+	
+	snprintf(latlon_buffer, sizeof(latlon_buffer), "%s, %s", lat_buffer, lon_buffer);
+	text_layer_set_text(s_latlon_layer, latlon_buffer);
 }
 
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {
