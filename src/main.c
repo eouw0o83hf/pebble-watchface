@@ -41,8 +41,19 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 
 /// Called when the window is loaded
 static void main_window_load(Window *window) {
+	
+	// For coordinates, the Pebble screen is 144x168,
+	// horizontal x vertical.
+	// GRect(topLeft, topRight, width, height)
+	
+	// 25	|
+	// 55	Time
+	// 32	Weather
+	// 32	LatLon
+	// 24	|
+	
 	// Be sure to _destroy this on _unload()
-	s_time_layer = text_layer_create(GRect(0, 35, 144, 50));
+	s_time_layer = text_layer_create(GRect(0, 25, 144, 55));
 	// Text/UI initialization
 	text_layer_set_background_color(s_time_layer, GColorClear);
 	text_layer_set_text_color(s_time_layer, GColorBlack);
@@ -54,21 +65,21 @@ static void main_window_load(Window *window) {
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_layer));
 
 	// Create temperature Layer
-	s_weather_layer = text_layer_create(GRect(0, 90, 144, 25));
+	s_weather_layer = text_layer_create(GRect(0, 80, 144, 32));
 	text_layer_set_background_color(s_weather_layer, GColorBlack);
 	text_layer_set_text_color(s_weather_layer, GColorWhite);
 	text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
-	text_layer_set_text(s_weather_layer, "Weather pending");
-	text_layer_set_font(s_weather_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+	text_layer_set_text(s_weather_layer, "");
+	text_layer_set_font(s_weather_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_weather_layer));
 	
 	// Create location Layer
-	s_latlon_layer = text_layer_create(GRect(0, 120, 144, 25));
+	s_latlon_layer = text_layer_create(GRect(0, 112, 144, 32));
 	text_layer_set_background_color(s_latlon_layer, GColorClear);
 	text_layer_set_text_color(s_latlon_layer, GColorBlack);
 	text_layer_set_text_alignment(s_latlon_layer, GTextAlignmentCenter);
-	text_layer_set_text(s_latlon_layer, "latlon here");
-	text_layer_set_font(s_latlon_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+	text_layer_set_text(s_latlon_layer, "");
+	text_layer_set_font(s_latlon_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_latlon_layer));
 }
 
@@ -115,11 +126,11 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 				break;
 			
 			case KEY_LATITUDE:
-				snprintf(lat_buffer, sizeof(lat_buffer), "%.5s", t->value->cstring);
+				snprintf(lat_buffer, sizeof(lat_buffer), "%.6s", t->value->cstring);
 				break;
 			
 			case KEY_LONGITUDE:
-				snprintf(lon_buffer, sizeof(lon_buffer), t->value->cstring[0] == '-' ? "%.6s" : "%.5s", t->value->cstring);
+				snprintf(lon_buffer, sizeof(lon_buffer), t->value->cstring[0] == '-' ? "%.7s" : "%.6s", t->value->cstring);
 				break;
 			
 			default:
