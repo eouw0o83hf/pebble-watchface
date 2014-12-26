@@ -13,6 +13,8 @@ static TextLayer *s_time_layer;
 static TextLayer *s_weather_layer;
 /// For location
 static TextLayer *s_latlon_layer;
+/// Date
+static TextLayer *s_date_layer;
 
 // Oh right, declaration order matters in C.
 // So the file's kind of written upside-down
@@ -22,17 +24,21 @@ static void update_time() {
 	struct tm *tick_time = localtime(&temp);
 	
 	// make all char buffers long-lived
-	static char buffer[] = "00:00";
+	static char time_buffer[] = "00:00";
+	static char date_buffer[] = "Jan 01";
 	
 	// move to buffer
 	if(clock_is_24h_style() == true) {
-		strftime(buffer, sizeof("00:00"), "%H:%M", tick_time);
+		strftime(time_buffer, sizeof(time_buffer), "%H:%M", tick_time);
 	} else {
-		strftime(buffer, sizeof("00:00"), "%I:%M", tick_time);
+		strftime(time_buffer, sizeof(time_buffer), "%I:%M", tick_time);
 	}
 	
+	strftime(date_buffer, sizeof(date_buffer), "%b %d", tick_time);
+	
 	// persist to UI
-	text_layer_set_text(s_time_layer, buffer);
+	text_layer_set_text(s_time_layer, time_buffer);
+	text_layer_set_text(s_date_layer, date_buffer);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
@@ -46,26 +52,32 @@ static void main_window_load(Window *window) {
 	// horizontal x vertical.
 	// GRect(topLeft, topRight, width, height)
 	
-	// 25	|
+	// 8	|
+	// 32	Date
 	// 55	Time
 	// 32	Weather
 	// 32	LatLon
-	// 24	|
+	// 9	|
+	
+	// Create date Layer
+	s_date_layer = text_layer_create(GRect(0, 8, 144, 32));
+	text_layer_set_background_color(s_date_layer, GColorClear);
+	text_layer_set_text_color(s_date_layer, GColorBlack);
+	text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
+	text_layer_set_text(s_date_layer, "");
+	text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_date_layer));
 	
 	// Be sure to _destroy this on _unload()
-	s_time_layer = text_layer_create(GRect(0, 25, 144, 55));
-	// Text/UI initialization
+	s_time_layer = text_layer_create(GRect(0, 40, 144, 55));
 	text_layer_set_background_color(s_time_layer, GColorClear);
 	text_layer_set_text_color(s_time_layer, GColorBlack);
-	// Make it pretty
 	text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
 	text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
-
-	// Activate
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_layer));
 
 	// Create temperature Layer
-	s_weather_layer = text_layer_create(GRect(0, 80, 144, 32));
+	s_weather_layer = text_layer_create(GRect(0, 95, 144, 32));
 	text_layer_set_background_color(s_weather_layer, GColorBlack);
 	text_layer_set_text_color(s_weather_layer, GColorWhite);
 	text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
@@ -74,7 +86,7 @@ static void main_window_load(Window *window) {
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_weather_layer));
 	
 	// Create location Layer
-	s_latlon_layer = text_layer_create(GRect(0, 112, 144, 32));
+	s_latlon_layer = text_layer_create(GRect(0, 127, 144, 32));
 	text_layer_set_background_color(s_latlon_layer, GColorClear);
 	text_layer_set_text_color(s_latlon_layer, GColorBlack);
 	text_layer_set_text_alignment(s_latlon_layer, GTextAlignmentCenter);
@@ -88,6 +100,7 @@ static void main_window_unload(Window *window) {
 	text_layer_destroy(s_time_layer);
 	text_layer_destroy(s_weather_layer);
 	text_layer_destroy(s_latlon_layer);
+	text_layer_destroy(s_date_layer);
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
