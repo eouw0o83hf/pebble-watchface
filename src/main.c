@@ -5,6 +5,9 @@
 #define KEY_LATITUDE	2
 #define KEY_LONGITUDE	3
 	
+#define PERSIST_WEATHER	1
+#define PERSIST_LATLON	2
+	
 /// The main watchface window
 static Window *s_main_window;
 /// To show text on the screen
@@ -160,6 +163,9 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	
 	snprintf(latlon_buffer, sizeof(latlon_buffer), "%s, %s", lat_buffer, lon_buffer);
 	text_layer_set_text(s_latlon_layer, latlon_buffer);
+	
+	persist_write_string(PERSIST_WEATHER, weather_buffer);
+	persist_write_string(PERSIST_LATLON, latlon_buffer);
 }
 
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {
@@ -188,6 +194,17 @@ static void init() {
 	
 	window_stack_push(s_main_window, true);
 	update_time();
+	
+	if(persist_exists(PERSIST_WEATHER)) {
+		static char weather_buffer[32];
+		persist_read_string(PERSIST_WEATHER, weather_buffer, sizeof(weather_buffer));
+		text_layer_set_text(s_weather_layer, weather_buffer);
+	}
+	if(persist_exists(PERSIST_LATLON)) {
+		static char latlon_buffer[32];
+		persist_read_string(PERSIST_LATLON, latlon_buffer, sizeof(latlon_buffer));
+		text_layer_set_text(s_latlon_layer, latlon_buffer);
+	}
 	
 	tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 	
