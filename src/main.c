@@ -17,7 +17,28 @@ static TextLayer *s_weather_layer;
 /// For location
 static TextLayer *s_latlon_layer;
 /// Date
-static TextLayer *s_date_layer;
+static TextLayer *s_date_layer; 
+
+static Layer *s_battery_canvas_layer;
+static int s_battery_charge_percent;
+static bool s_battery_is_charging;
+
+static void battery_ui_update(Layer *layer, GContext *context) {
+	int charge_width = 144 * s_battery_charge_percent / 100;
+	APP_LOG(APP_LOG_LEVEL_INFO, "Setting charge width to %d pixels", charge_width);
+	
+	graphics_context_set_fill_color(context, GColorBlack);
+	graphics_fill_rect(context, GRect(0, 0, charge_width, 4), 0, GCornerNone);
+}
+
+static void battery_handler(BatteryChargeState new_state) {
+	APP_LOG(APP_LOG_LEVEL_INFO, "Battery charge %d, Is charging %d!", new_state.charge_percent, new_state.is_charging ? 1 : 0);
+	s_battery_charge_percent = new_state.charge_percent;
+	s_battery_is_charging = new_state.is_charging;
+	
+	// Force an update
+	layer_mark_dirty(s_battery_canvas_layer);
+}
 
 // Oh right, declaration order matters in C.
 // So the file's kind of written upside-down
@@ -55,7 +76,8 @@ static void main_window_load(Window *window) {
 	// horizontal x vertical.
 	// GRect(topLeft, topRight, width, height)
 	
-	// 8	|
+	// 4 	<----- Battery fill ----->
+	// 4	|
 	// 32	Date
 	// 55	Time
 	// 32	Weather
@@ -96,6 +118,10 @@ static void main_window_load(Window *window) {
 	text_layer_set_text(s_latlon_layer, "");
 	text_layer_set_font(s_latlon_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_latlon_layer));
+	
+	s_battery_canvas_layer = layer_create(GRect(0, 0, 144, 4));
+	layer_add_child(window_get_root_layer(window), s_battery_canvas_layer);
+	layer_set_update_proc(s_battery_canvas_layer, battery_ui_update);
 }
 
 /// Called when the window is unloaded
@@ -104,6 +130,7 @@ static void main_window_unload(Window *window) {
 	text_layer_destroy(s_weather_layer);
 	text_layer_destroy(s_latlon_layer);
 	text_layer_destroy(s_date_layer);
+	layer_destroy(s_battery_canvas_layer);
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
@@ -193,7 +220,21 @@ static void init() {
 	});
 	
 	window_stack_push(s_main_window, true);
+	
+	tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 	update_time();
+	
+	battery_state_service_subscribe(battery_handler);
+	battery_handler(battery_state_service_peek());
+	
+	// SDK best practice: register callbacks before opening appMessage
+	app_message_register_inbox_received(inbox_received_callback);	
+	app_message_register_inbox_dropped(inbox_dropped_callback);
+	app_message_register_outbox_failed(outbox_failed_callback);
+	app_message_register_outbox_sent(outbox_sent_callback);
+	
+	// Now open appMessage
+	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 	
 	if(persist_exists(PERSIST_WEATHER)) {
 		static char weather_buffer[32];
@@ -205,17 +246,6 @@ static void init() {
 		persist_read_string(PERSIST_LATLON, latlon_buffer, sizeof(latlon_buffer));
 		text_layer_set_text(s_latlon_layer, latlon_buffer);
 	}
-	
-	tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-	
-	// SDK best practice: register callbacks before opening appMessage
-	app_message_register_inbox_received(inbox_received_callback);	
-	app_message_register_inbox_dropped(inbox_dropped_callback);
-	app_message_register_outbox_failed(outbox_failed_callback);
-	app_message_register_outbox_sent(outbox_sent_callback);
-	
-	// Now open appMessage
-	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 }
 
 static void deinit() {
