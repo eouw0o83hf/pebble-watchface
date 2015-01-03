@@ -4,12 +4,29 @@
         "location"
     ],
     "companyName": "nathanlandis@gmail.com",
-    "longName": "pebble-watchface-example",
+    "longName": "eouw0o83hf pebble watchface",
     "projectType": "native",
     "resources": {
-        "media": []
+        "media": [
+            {
+                "file": "fonts/CODE Bold.ttf",
+                "name": "FONT_CODE_BOLD_60",
+                "type": "font"
+            },
+            {
+                "file": "fonts/coolvetica.ttf",
+                "name": "FONT_COOLVETICA_60",
+                "type": "font"
+            },
+            {
+                "characterRegex": "[0-9:]",
+                "file": "fonts/SansBlack.ttf",
+                "name": "FONT_SANS_BLACK_SUBSET_50",
+                "type": "font"
+            }
+        ]
     },
-    "shortName": "pebble-watchface-example",
+    "shortName": "eouw0o83hface",
     "uuid": "33ea871e-d088-4669-9e16-89a8c1b4001c",
     "versionCode": 1,
     "versionLabel": "1.0",

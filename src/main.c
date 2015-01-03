@@ -12,6 +12,7 @@
 static Window *s_main_window;
 /// To show text on the screen
 static TextLayer *s_time_layer;
+static GFont s_time_font;
 /// For temperature
 static TextLayer *s_weather_layer;
 /// For location
@@ -50,7 +51,7 @@ static void update_time() {
 	// make all char buffers long-lived
 	static char time_buffer[] = "00:00";
 	static char date_buffer[] = "Jan 01";
-	
+		
 	// move to buffer
 	if(clock_is_24h_style() == true) {
 		strftime(time_buffer, sizeof(time_buffer), "%H:%M", tick_time);
@@ -63,6 +64,24 @@ static void update_time() {
 	// persist to UI
 	text_layer_set_text(s_time_layer, time_buffer);
 	text_layer_set_text(s_date_layer, date_buffer);
+	
+	// Refresh weather every five minutes
+	if(tick_time->tm_min % 5 == 0) {	
+		APP_LOG(APP_LOG_LEVEL_INFO, "Requesting updated weather");
+
+		DictionaryIterator *iter;
+  		app_message_outbox_begin(&iter);
+		
+		// This is where you write to the request dictionary.
+		// Here's an example I found of doing that:
+		//  Tuplet tuple = (symbol == NULL)
+        //              ? TupletInteger(quote_key, 1)
+        //              : TupletCString(quote_key, symbol);
+		//	dict_write_tuplet(iter, &tuple);
+		
+  		dict_write_end(iter);
+  		app_message_outbox_send();
+	}
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
@@ -72,20 +91,21 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 /// Called when the window is loaded
 static void main_window_load(Window *window) {
 	
+	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_CODE_BOLD_60));
+	
 	// For coordinates, the Pebble screen is 144x168,
 	// horizontal x vertical.
 	// GRect(topLeft, topRight, width, height)
 	
 	// 4 	<----- Battery fill ----->
-	// 4	|
-	// 32	Date
-	// 55	Time
+	// 28	Date (^ 4 top padding)
+	// 60	Time (some top padding)
 	// 32	Weather
 	// 32	LatLon
 	// 9	|
 	
 	// Create date Layer
-	s_date_layer = text_layer_create(GRect(0, 8, 144, 32));
+	s_date_layer = text_layer_create(GRect(0, 4, 144, 28));
 	text_layer_set_background_color(s_date_layer, GColorClear);
 	text_layer_set_text_color(s_date_layer, GColorBlack);
 	text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
@@ -94,10 +114,10 @@ static void main_window_load(Window *window) {
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_date_layer));
 	
 	// Be sure to _destroy this on _unload()
-	s_time_layer = text_layer_create(GRect(0, 40, 144, 55));
+	s_time_layer = text_layer_create(GRect(0, 28, 144, 60));
 	text_layer_set_background_color(s_time_layer, GColorClear);
 	text_layer_set_text_color(s_time_layer, GColorBlack);
-	text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
+	text_layer_set_font(s_time_layer, s_time_font);
 	text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
 	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_time_layer));
 
@@ -131,6 +151,7 @@ static void main_window_unload(Window *window) {
 	text_layer_destroy(s_latlon_layer);
 	text_layer_destroy(s_date_layer);
 	layer_destroy(s_battery_canvas_layer);
+	fonts_unload_custom_font(s_time_font);
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
@@ -188,7 +209,8 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	snprintf(weather_buffer, sizeof(weather_buffer), "%s, %s", temp_buffer, cond_buffer);
 	text_layer_set_text(s_weather_layer, weather_buffer);
 	
-	snprintf(latlon_buffer, sizeof(latlon_buffer), "%s, %s", lat_buffer, lon_buffer);
+	//snprintf(latlon_buffer, sizeof(latlon_buffer), "%s, %s", lat_buffer, lon_buffer);
+	snprintf(latlon_buffer, sizeof(latlon_buffer), "%s, %s", "41.879", "-87.636");
 	text_layer_set_text(s_latlon_layer, latlon_buffer);
 	
 	persist_write_string(PERSIST_WEATHER, weather_buffer);
@@ -200,7 +222,7 @@ static void inbox_dropped_callback(AppMessageResult reason, void *context) {
 }
 
 static void outbox_failed_callback(DictionaryIterator *iterator, AppMessageResult reason, void *context) {
-	APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed");
+	APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed because %d", reason);
 }
 
 static void outbox_sent_callback(DictionaryIterator *iterator, void *context) {
